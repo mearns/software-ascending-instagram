@@ -15,7 +15,7 @@ async function getScaledImage(src, maxWidth, maxHeight, gravity) {
   return [img, w, h];
 }
 
-async function loadAndPaintImage(canvas, src, gravity, authorImageSrc) {
+async function loadAndPaintImage(canvas, src, gravity, authorImageSrc, title) {
   const [img, w, h] = await getScaledImage(src, canvas.width, canvas.height);
   const [x, y] = applyGravity(canvas.width - w, canvas.height - h, gravity);
   const ctx = canvas.getContext("2d");
@@ -45,6 +45,36 @@ async function loadAndPaintImage(canvas, src, gravity, authorImageSrc) {
     ctx.drawImage(authorImg, x, y, authorW, authorH);
     ctx.restore();
   }
+
+  if (title) {
+    const lines = title.split(/\\n/);
+    ctx.save();
+    const nominalFontSize = 42;
+    const lineSpacing = 1.3;
+    ctx.font = `${nominalFontSize}pt serif`;
+    const metrics = lines.map(line => ctx.measureText(line));
+    const right = Math.max(...metrics.map(m => m.actualBoundingBoxRight));
+    const nominalLeft = Math.min(
+      ...metrics.map(m => Math.min(0, m.actualBoundingBoxLeft))
+    );
+    const nominalLineHeight = Math.max(
+      ...metrics.map(m => m.actualBoundingBoxAscent)
+    );
+    const scale = canvas.width / right;
+    const fontSize = Math.floor(scale * nominalFontSize);
+    console.log(scale, nominalFontSize, fontSize);
+    ctx.font = `${fontSize}pt serif`;
+    const x = nominalLeft * scale;
+    const lineHeight = nominalLineHeight * scale;
+    lines.forEach((line, idx) => {
+      ctx.fillText(
+        line,
+        x,
+        (idx + 1) * lineHeight + idx * lineHeight * (lineSpacing - 1)
+      );
+    });
+    ctx.restore();
+  }
 }
 
 function applyGravity(sx, sy, gravity = "center") {
@@ -71,6 +101,7 @@ const Page = () => {
   const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
 
   const [titleSize, setTitleSize] = useState(32);
+
   useEffect(() => {
     if (!title.current) {
       return;
@@ -81,6 +112,7 @@ const Page = () => {
       setTitleSize(titleSize - 1);
     }
   }, [title, titleSize, router.query.title]);
+
   useEffect(() => {
     if (!router.query.photo) {
       return;
@@ -92,19 +124,23 @@ const Page = () => {
       canvas.current,
       router.query.photo,
       router.query.gravity,
-      router.query.authorImage
+      router.query.authorImage,
+      router.query.title
     );
   }, [
     canvas,
     router.query.photo,
     router.query.gravity,
-    router.query.authorImage
+    router.query.authorImage,
+    router.query.title
   ]);
+
   return (
     <div>
       <h1
         ref={title}
         style={{
+          display: "none",
           position: "absolute",
           padding: `${titlePadding}px 0 0 ${titlePadding}px`,
           margin: 0,
