@@ -54,16 +54,22 @@ async function loadAndPaintImage(canvas, src, gravity, authorImageSrc, title) {
     ctx.save();
     ctx.font = `${nominalFontSize}pt serif`;
     const metrics = lines.map(line => ctx.measureText(line));
-    const right = Math.max(...metrics.map(m => m.actualBoundingBoxRight));
+    const nominalRight = Math.max(
+      ...metrics.map(m => m.actualBoundingBoxRight)
+    );
     const nominalLeft = Math.min(
       ...metrics.map(m => Math.min(0, m.actualBoundingBoxLeft))
     );
     const nominalLineHeight = Math.max(
       ...metrics.map(m => m.actualBoundingBoxAscent)
     );
-    const scale = (canvas.width - padding * 2) / right;
+    const nominalHeight =
+      nominalLineHeight *
+      (lines.length + (lines.length - 1) * (lineSpacing - 1));
+    const hscale = (canvas.width - padding * 2) / nominalRight;
+    const vscale = (canvas.height - padding * 2) / nominalHeight;
+    const scale = Math.min(hscale, vscale);
     const fontSize = Math.floor(scale * nominalFontSize);
-    console.log(scale, nominalFontSize, fontSize);
     ctx.font = `${fontSize}pt serif`;
     const x = padding + nominalLeft * scale;
     const y = padding;
