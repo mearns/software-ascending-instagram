@@ -47,10 +47,11 @@ async function loadAndPaintImage(canvas, src, gravity, authorImageSrc, title) {
   }
 
   if (title) {
-    const lines = title.split(/\\n/);
-    ctx.save();
     const nominalFontSize = 42;
     const lineSpacing = 1.3;
+    const padding = canvas.width / 30;
+    const lines = title.split(/\\n/);
+    ctx.save();
     ctx.font = `${nominalFontSize}pt serif`;
     const metrics = lines.map(line => ctx.measureText(line));
     const right = Math.max(...metrics.map(m => m.actualBoundingBoxRight));
@@ -60,17 +61,18 @@ async function loadAndPaintImage(canvas, src, gravity, authorImageSrc, title) {
     const nominalLineHeight = Math.max(
       ...metrics.map(m => m.actualBoundingBoxAscent)
     );
-    const scale = canvas.width / right;
+    const scale = (canvas.width - padding * 2) / right;
     const fontSize = Math.floor(scale * nominalFontSize);
     console.log(scale, nominalFontSize, fontSize);
     ctx.font = `${fontSize}pt serif`;
-    const x = nominalLeft * scale;
+    const x = padding + nominalLeft * scale;
+    const y = padding;
     const lineHeight = nominalLineHeight * scale;
     lines.forEach((line, idx) => {
       ctx.fillText(
         line,
         x,
-        (idx + 1) * lineHeight + idx * lineHeight * (lineSpacing - 1)
+        y + (idx + 1) * lineHeight + idx * lineHeight * (lineSpacing - 1)
       );
     });
     ctx.restore();
