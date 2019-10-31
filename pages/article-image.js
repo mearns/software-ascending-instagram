@@ -1,6 +1,72 @@
 import { useRouter } from "next/router";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import getGrid from "../lib/rule110";
+
+const Page = () => {
+  const router = useRouter();
+  const [title, setTitle] = useState("");
+
+  useEffect(() => {
+    if (router.query.title) {
+      setTitle(router.query.title.replace(/\\n/g, "\n"));
+    }
+  }, [router.query.title]);
+
+  const titleChange = useCallback(e => {
+    console.log(JSON.stringify(e.target.value));
+    setTitle(e.target.value);
+  });
+
+  const canvas = useRef();
+  const width = parseInt(router.query.dim || 300, 10);
+  const foregroundColor = router.query.fgColor || "black";
+  const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
+
+  useEffect(() => {
+    const grid = getGrid(30, 70);
+    if (!router.query.photo) {
+      return;
+    }
+    if (!canvas.current) {
+      return;
+    }
+    loadAndPaintImage(
+      canvas.current,
+      title,
+      router.query.photo,
+      router.query.gravity,
+      router.query.authorImage,
+      backgroundColor,
+      foregroundColor,
+      grid
+    );
+  }, [
+    canvas,
+    width,
+    title,
+    router.query.photo,
+    router.query.gravity,
+    router.query.authorImage
+  ]);
+
+  return (
+    <div>
+      <canvas
+        ref={canvas}
+        width={width}
+        height={width}
+        style={{
+          border: "3px solid black",
+          float: "left",
+          marginRight: "50px"
+        }}
+      />
+      <form method="GET" action="#">
+        <textarea name="title" value={title} onChange={titleChange} />
+      </form>
+    </div>
+  );
+};
 
 async function getScaledImage(src, maxWidth, maxHeight, gravity) {
   const img = new Image();
@@ -29,6 +95,7 @@ async function loadAndPaintImage(
   const [img, w, h] = await getScaledImage(imgSrc, canvas.width, canvas.height);
   const [x, y] = applyGravity(canvas.width - w, canvas.height - h, gravity);
   const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(img, x, y, w, h);
 
   if (authorImageSrc) {
@@ -72,7 +139,7 @@ async function loadAndPaintImage(
     const nominalFontSize = 42;
     const lineSpacing = 1.3;
     const padding = canvas.width / 30;
-    const lines = title.split(/\\n/);
+    const lines = title.split(/\n/);
     ctx.save();
     ctx.font = `${nominalFontSize}pt serif`;
     const metrics = lines.map(line => ctx.measureText(line));
@@ -179,51 +246,5 @@ function applyGravity(sx, sy, gravity = "center") {
   const x = !horz ? sx / 2 : horz.startsWith("e") ? 0 : sx;
   return [x, y];
 }
-
-const Page = () => {
-  const router = useRouter();
-  const canvas = useRef();
-  const width = parseInt(router.query.dim || 300, 10);
-  const foregroundColor = router.query.fgColor || "black";
-  const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
-
-  useEffect(() => {
-    const grid = getGrid(30, 70);
-    if (!router.query.photo) {
-      return;
-    }
-    if (!canvas.current) {
-      return;
-    }
-    loadAndPaintImage(
-      canvas.current,
-      router.query.title,
-      router.query.photo,
-      router.query.gravity,
-      router.query.authorImage,
-      backgroundColor,
-      foregroundColor,
-      grid
-    );
-  }, [
-    canvas,
-    width,
-    router.query.title,
-    router.query.photo,
-    router.query.gravity,
-    router.query.authorImage
-  ]);
-
-  return (
-    <div>
-      <canvas
-        ref={canvas}
-        width={width}
-        height={width}
-        style={{ border: "3px solid black" }}
-      />
-    </div>
-  );
-};
 
 export default Page;
