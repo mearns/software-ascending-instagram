@@ -5,6 +5,9 @@ import getGrid from "../lib/rule110";
 const Page = () => {
   const router = useRouter();
   const [title, setTitle] = useState("");
+  const [photo, setPhoto] = useState("");
+  const [authorImage, setAuthorImage] = useState("");
+  const [dim, setDim] = useState(600);
 
   useEffect(() => {
     if (router.query.title) {
@@ -12,13 +15,41 @@ const Page = () => {
     }
   }, [router.query.title]);
 
+  useEffect(() => {
+    if (router.query.photo) {
+      setPhoto(router.query.photo);
+    }
+  }, [router.query.photo]);
+
+  useEffect(() => {
+    if (router.query.authorImage) {
+      setAuthorImage(router.query.authorImage);
+    }
+  }, [router.query.authorImage]);
+
+  useEffect(() => {
+    if (router.query.dim) {
+      setDim(router.query.dim);
+    }
+  }, [router.query.dim]);
+
   const titleChange = useCallback(e => {
-    console.log(JSON.stringify(e.target.value));
     setTitle(e.target.value);
   });
 
+  const photoChange = useCallback(e => {
+    setPhoto(e.target.value);
+  });
+
+  const authorImageChange = useCallback(e => {
+    setAuthorImage(e.target.value);
+  });
+
+  const dimChange = useCallback(e => {
+    setDim(parseInt(e.target.value, 10));
+  });
+
   const canvas = useRef();
-  const width = parseInt(router.query.dim || 300, 10);
   const foregroundColor = router.query.fgColor || "black";
   const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
 
@@ -33,36 +64,65 @@ const Page = () => {
     loadAndPaintImage(
       canvas.current,
       title,
-      router.query.photo,
+      photo,
       router.query.gravity,
-      router.query.authorImage,
+      authorImage,
       backgroundColor,
       foregroundColor,
       grid
     );
-  }, [
-    canvas,
-    width,
-    title,
-    router.query.photo,
-    router.query.gravity,
-    router.query.authorImage
-  ]);
+  }, [canvas, dim, title, photo, router.query.gravity, authorImage]);
 
   return (
     <div>
       <canvas
         ref={canvas}
-        width={width}
-        height={width}
+        width={dim}
+        height={dim}
         style={{
           border: "3px solid black",
           float: "left",
-          marginRight: "50px"
+          marginRight: "10px"
         }}
       />
-      <form method="GET" action="#">
-        <textarea name="title" value={title} onChange={titleChange} />
+      <form>
+        <textarea
+          name="title"
+          value={title}
+          onChange={titleChange}
+          style={{
+            width: "400px",
+            height: "100px"
+          }}
+        />
+        <br />
+        <label for="photo-input">Featured Photo URL</label>
+        <input
+          type="text"
+          id="photo-input"
+          name="photo"
+          value={photo}
+          onChange={photoChange}
+          style={{ width: "800px" }}
+        />
+        <br />
+        <label for="author-photo-url-input">Author Photo URL</label>
+        <input
+          type="text"
+          name="authorImage"
+          value={authorImage}
+          onChange={authorImageChange}
+          style={{ width: "800px" }}
+        />
+        <br />
+        <label for="dim-input">Dim</label>
+        <input
+          type="number"
+          min="100"
+          name="dim"
+          value={dim}
+          onChange={dimChange}
+        />
       </form>
     </div>
   );
