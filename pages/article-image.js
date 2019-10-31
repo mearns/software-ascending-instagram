@@ -1,5 +1,6 @@
 import { useRouter } from "next/router";
 import React, { useState, useEffect, useRef } from "react";
+import getGrid from "../lib/rule110";
 
 async function getScaledImage(src, maxWidth, maxHeight, gravity) {
   const img = new Image();
@@ -22,7 +23,8 @@ async function loadAndPaintImage(
   gravity,
   authorImageSrc,
   backgroundColor,
-  foregroundColor
+  foregroundColor,
+  grid
 ) {
   const [img, w, h] = await getScaledImage(imgSrc, canvas.width, canvas.height);
   const [x, y] = applyGravity(canvas.width - w, canvas.height - h, gravity);
@@ -36,11 +38,17 @@ async function loadAndPaintImage(
       canvas.width / scale,
       canvas.height / scale
     );
-    const x = canvas.width - authorW - canvas.width / 40;
-    const y = canvas.height - authorH - canvas.height / 40;
+    const offset = canvas.width / 40;
+    const x = canvas.width - authorW - offset;
+    const y = canvas.height - authorH - offset;
     const cx = Math.floor(x + authorW / 2);
     const cy = Math.floor(y + authorH / 2);
     const radius = Math.floor(Math.max(authorW, authorH)) / 2;
+    const profileTop = y - offset;
+    const profileHeight = canvas.height - profileTop;
+
+    paintGrid(ctx, canvas.width, canvas.height, profileHeight, grid);
+
     ctx.save();
     ctx.fillStyle = backgroundColor;
     ctx.filter = "opacity(0.4)";
@@ -101,7 +109,7 @@ async function loadAndPaintImage(
       drop-shadow(${step2}px ${-step2}px 0 ${backgroundColor})
       drop-shadow(${-step2}px ${step2}px 0 ${backgroundColor})
       drop-shadow(${-step2}px ${-step2}px 0 ${backgroundColor})
-      blur(${canvas.width / 100}px)
+      blur(${canvas.width / 300}px)
       opacity(40%)
     `;
     lines.forEach((line, idx) => {
@@ -111,6 +119,26 @@ async function loadAndPaintImage(
     ctx.fillStyle = foregroundColor;
     drawText(ctx, lines, x, y, lineHeight, lineSpacing);
     ctx.restore();
+  }
+}
+
+function paintGrid(ctx, width, height, fillHeight, grid) {
+  const length = grid[0].length;
+  const cellSize = fillHeight / length;
+  for (let rowIdx = 0; rowIdx < grid.length; rowIdx++) {
+    for (let cellIdx = 0; cellIdx < grid[rowIdx].length; cellIdx++) {
+      if (grid[rowIdx][cellIdx]) {
+        ctx.save();
+        ctx.fillStyle = "blue";
+        ctx.beginPath();
+        const x = width - rowIdx * cellSize + cellSize / 2;
+        const y = height - fillHeight + cellIdx * cellSize + cellSize / 2;
+        ctx.moveTo(x, y);
+        ctx.arc(x, y, cellSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
   }
 }
 
@@ -146,6 +174,7 @@ const Page = () => {
   const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
 
   useEffect(() => {
+    const grid = getGrid(20, 50);
     if (!router.query.photo) {
       return;
     }
@@ -159,7 +188,8 @@ const Page = () => {
       router.query.gravity,
       router.query.authorImage,
       backgroundColor,
-      foregroundColor
+      foregroundColor,
+      grid
     );
   }, [
     canvas,
