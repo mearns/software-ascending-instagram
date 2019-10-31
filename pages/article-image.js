@@ -44,7 +44,7 @@ async function loadAndPaintImage(
     const cx = Math.floor(x + authorW / 2);
     const cy = Math.floor(y + authorH / 2);
     const radius = Math.floor(Math.max(authorW, authorH)) / 2;
-    const profileTop = y - offset;
+    const profileTop = y - 3 * offset;
     const profileHeight = canvas.height - profileTop;
 
     paintGrid(ctx, canvas.width, canvas.height, profileHeight, grid);
@@ -123,16 +123,30 @@ async function loadAndPaintImage(
 }
 
 function paintGrid(ctx, width, height, fillHeight, grid) {
+  const MAX_ALPHA = 0.65;
+  const MIN_ALPHA = 0.15;
+  const rows = grid.length;
   const length = grid[0].length;
   const cellSize = fillHeight / length;
-  for (let rowIdx = 0; rowIdx < grid.length; rowIdx++) {
-    for (let cellIdx = 0; cellIdx < grid[rowIdx].length; cellIdx++) {
-      if (grid[rowIdx][cellIdx]) {
+  function gridLocation(i, j) {
+    return [
+      width - i * cellSize + cellSize / 2,
+      height - fillHeight + j * cellSize + cellSize / 2
+    ];
+  }
+  for (let rowIdx = 0; rowIdx < rows; rowIdx++) {
+    for (let cellIdx = 0; cellIdx < length; cellIdx++) {
+      const ipct = rowIdx / rows;
+      const jpct = 1 - cellIdx / length;
+      const PCT_THRESHOLD = 0.15;
+      if (jpct * ipct < PCT_THRESHOLD && grid[rowIdx][cellIdx]) {
         ctx.save();
-        ctx.fillStyle = "blue";
+        const alpha =
+          (1 - (jpct * ipct) / PCT_THRESHOLD) * (MAX_ALPHA - MIN_ALPHA) +
+          MIN_ALPHA;
+        ctx.fillStyle = `rgba(100, 150, 180, ${alpha})`;
         ctx.beginPath();
-        const x = width - rowIdx * cellSize + cellSize / 2;
-        const y = height - fillHeight + cellIdx * cellSize + cellSize / 2;
+        const [x, y] = gridLocation(rowIdx, cellIdx);
         ctx.moveTo(x, y);
         ctx.arc(x, y, cellSize / 2, 0, Math.PI * 2);
         ctx.fill();
@@ -174,7 +188,7 @@ const Page = () => {
   const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
 
   useEffect(() => {
-    const grid = getGrid(20, 50);
+    const grid = getGrid(30, 70);
     if (!router.query.photo) {
       return;
     }
