@@ -28,6 +28,7 @@ async function loadAndPaintImage(
   const [x, y] = applyGravity(canvas.width - w, canvas.height - h, gravity);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(img, x, y, w, h);
+
   if (authorImageSrc) {
     const scale = 7;
     const [authorImg, authorW, authorH] = await getScaledImage(
@@ -39,16 +40,21 @@ async function loadAndPaintImage(
     const y = canvas.height - authorH - canvas.height / 40;
     const cx = Math.floor(x + authorW / 2);
     const cy = Math.floor(y + authorH / 2);
+    const radius = Math.floor(Math.max(authorW, authorH)) / 2;
     ctx.save();
+    ctx.fillStyle = backgroundColor;
+    ctx.filter = "opacity(0.4)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.2 * radius, 0, 2.0 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = foregroundColor;
+    ctx.filter = "opacity(1.0)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.05 * radius, 0, 2.0 * Math.PI);
+    ctx.fill();
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.arc(
-      cx,
-      cy,
-      Math.floor(Math.max(authorW, authorH)) / 2,
-      0,
-      2.0 * Math.PI
-    );
+    ctx.arc(cx, cy, radius, 0, 2.0 * Math.PI);
     ctx.clip();
     ctx.drawImage(authorImg, x, y, authorW, authorH);
     ctx.restore();
@@ -96,7 +102,7 @@ async function loadAndPaintImage(
       drop-shadow(${-step2}px ${step2}px 0 ${backgroundColor})
       drop-shadow(${-step2}px ${-step2}px 0 ${backgroundColor})
       blur(${canvas.width / 100}px)
-      opacity(70%)
+      opacity(40%)
     `;
     lines.forEach((line, idx) => {
       drawText(ctx, lines, x, y, lineHeight, lineSpacing);
