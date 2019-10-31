@@ -82,18 +82,20 @@ async function loadAndPaintImage(
     const x = padding + nominalLeft * scale;
     const y = padding;
     const lineHeight = nominalLineHeight * scale;
+    const step1 = canvas.width / 300;
+    const step2 = 2 * step1;
     ctx.save();
     ctx.fillStyle = backgroundColor;
     ctx.filter = `
-      drop-shadow(1px 1px 0 ${backgroundColor})
-      drop-shadow(1px -1px 0 ${backgroundColor})
-      drop-shadow(-1px 1px 0 ${backgroundColor})
-      drop-shadow(-1px -1px 0 ${backgroundColor})
-      drop-shadow(2px 2px 0 ${backgroundColor})
-      drop-shadow(2px -2px 0 ${backgroundColor})
-      drop-shadow(-2px 2px 0 ${backgroundColor})
-      drop-shadow(-2px -2px 0 ${backgroundColor})
-      blur(3px)
+      drop-shadow(${step1}px ${step1}px 0 ${backgroundColor})
+      drop-shadow(${step1}px ${-step1}px 0 ${backgroundColor})
+      drop-shadow(${-step1}px ${step1}px 0 ${backgroundColor})
+      drop-shadow(${-step1}px ${-step1}px 0 ${backgroundColor})
+      drop-shadow(${step2}px ${step2}px 0 ${backgroundColor})
+      drop-shadow(${step2}px ${-step2}px 0 ${backgroundColor})
+      drop-shadow(${-step2}px ${step2}px 0 ${backgroundColor})
+      drop-shadow(${-step2}px ${-step2}px 0 ${backgroundColor})
+      blur(${canvas.width / 100}px)
       opacity(70%)
     `;
     lines.forEach((line, idx) => {
@@ -133,11 +135,9 @@ function applyGravity(sx, sy, gravity = "center") {
 const Page = () => {
   const router = useRouter();
   const canvas = useRef();
-  const width = 300;
+  const width = parseInt(router.query.dim || 300, 10);
   const foregroundColor = router.query.fgColor || "black";
   const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
-
-  const [titleSize, setTitleSize] = useState(32);
 
   useEffect(() => {
     if (!router.query.photo) {
@@ -157,10 +157,11 @@ const Page = () => {
     );
   }, [
     canvas,
+    width,
+    router.query.title,
     router.query.photo,
     router.query.gravity,
-    router.query.authorImage,
-    router.query.title
+    router.query.authorImage
   ]);
 
   return (
