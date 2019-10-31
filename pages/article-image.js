@@ -15,8 +15,16 @@ async function getScaledImage(src, maxWidth, maxHeight, gravity) {
   return [img, w, h];
 }
 
-async function loadAndPaintImage(canvas, src, gravity, authorImageSrc, title) {
-  const [img, w, h] = await getScaledImage(src, canvas.width, canvas.height);
+async function loadAndPaintImage(
+  canvas,
+  title,
+  imgSrc,
+  gravity,
+  authorImageSrc,
+  backgroundColor,
+  foregroundColor
+) {
+  const [img, w, h] = await getScaledImage(imgSrc, canvas.width, canvas.height);
   const [x, y] = applyGravity(canvas.width - w, canvas.height - h, gravity);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(img, x, y, w, h);
@@ -74,15 +82,38 @@ async function loadAndPaintImage(canvas, src, gravity, authorImageSrc, title) {
     const x = padding + nominalLeft * scale;
     const y = padding;
     const lineHeight = nominalLineHeight * scale;
+    ctx.save();
+    ctx.fillStyle = backgroundColor;
+    ctx.filter = `
+      drop-shadow(1px 1px 0 ${backgroundColor})
+      drop-shadow(1px -1px 0 ${backgroundColor})
+      drop-shadow(-1px 1px 0 ${backgroundColor})
+      drop-shadow(-1px -1px 0 ${backgroundColor})
+      drop-shadow(2px 2px 0 ${backgroundColor})
+      drop-shadow(2px -2px 0 ${backgroundColor})
+      drop-shadow(-2px 2px 0 ${backgroundColor})
+      drop-shadow(-2px -2px 0 ${backgroundColor})
+      blur(3px)
+      opacity(70%)
+    `;
     lines.forEach((line, idx) => {
-      ctx.fillText(
-        line,
-        x,
-        y + (idx + 1) * lineHeight + idx * lineHeight * (lineSpacing - 1)
-      );
+      drawText(ctx, lines, x, y, lineHeight, lineSpacing);
     });
     ctx.restore();
+    ctx.fillStyle = foregroundColor;
+    drawText(ctx, lines, x, y, lineHeight, lineSpacing);
+    ctx.restore();
   }
+}
+
+function drawText(ctx, lines, sx, y, lineHeight, lineSpacing) {
+  lines.forEach((line, idx) => {
+    ctx.fillText(
+      line,
+      sx,
+      y + (idx + 1) * lineHeight + idx * lineHeight * (lineSpacing - 1)
+    );
+  });
 }
 
 function applyGravity(sx, sy, gravity = "center") {
@@ -101,25 +132,12 @@ function applyGravity(sx, sy, gravity = "center") {
 
 const Page = () => {
   const router = useRouter();
-  const title = useRef();
   const canvas = useRef();
   const width = 300;
-  const titlePadding = 15;
   const foregroundColor = router.query.fgColor || "black";
   const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
 
   const [titleSize, setTitleSize] = useState(32);
-
-  useEffect(() => {
-    if (!title.current) {
-      return;
-    }
-    const h1 = title.current;
-    if (h1.clientHeight > width || h1.clientWidth > width) {
-      console.log("XXX", titleSize, h1.clientWidth);
-      setTitleSize(titleSize - 1);
-    }
-  }, [title, titleSize, router.query.title]);
 
   useEffect(() => {
     if (!router.query.photo) {
@@ -130,10 +148,12 @@ const Page = () => {
     }
     loadAndPaintImage(
       canvas.current,
+      router.query.title,
       router.query.photo,
       router.query.gravity,
       router.query.authorImage,
-      router.query.title
+      backgroundColor,
+      foregroundColor
     );
   }, [
     canvas,
@@ -145,27 +165,6 @@ const Page = () => {
 
   return (
     <div>
-      <h1
-        ref={title}
-        style={{
-          display: "none",
-          position: "absolute",
-          padding: `${titlePadding}px 0 0 ${titlePadding}px`,
-          margin: 0,
-          maxWidth: width - 2 * titlePadding,
-          fontSize: titleSize,
-          whiteSpace: "pre",
-          color: foregroundColor,
-          textShadow: `
-            -1px -1px 2px ${backgroundColor},
-            -1px  1px 2px ${backgroundColor},
-             1px  1px 2px ${backgroundColor},
-             1px -1px 2px ${backgroundColor}
-          `
-        }}
-      >
-        {router.query.title && router.query.title.replace(/\\n/g, "\n")}
-      </h1>
       <canvas
         ref={canvas}
         width={width}
