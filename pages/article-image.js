@@ -2,60 +2,67 @@ import { useRouter } from "next/router";
 import React, { useCallback, useState, useEffect, useRef } from "react";
 import getGrid from "../lib/rule110";
 
+function createState(
+  router,
+  name,
+  initialValue,
+  { parseQuery = v => v, valueFromEvent = e => e.target.value } = {}
+) {
+  const [val, setVal] = useState(initialValue);
+
+  useEffect(() => {
+    if (router.query[name]) {
+      setVal(parseQuery(router.query[name]));
+    }
+  }, [router.query[name]]);
+
+  const onChange = useCallback(e => {
+    setVal(valueFromEvent(e));
+  }, []);
+
+  return [val, onChange];
+}
+
 const Page = () => {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [photo, setPhoto] = useState("");
-  const [authorImage, setAuthorImage] = useState("");
-  const [dim, setDim] = useState(600);
-
-  useEffect(() => {
-    if (router.query.title) {
-      setTitle(router.query.title.replace(/\\n/g, "\n"));
-    }
-  }, [router.query.title]);
-
-  useEffect(() => {
-    if (router.query.photo) {
-      setPhoto(router.query.photo);
-    }
-  }, [router.query.photo]);
-
-  useEffect(() => {
-    if (router.query.authorImage) {
-      setAuthorImage(router.query.authorImage);
-    }
-  }, [router.query.authorImage]);
-
-  useEffect(() => {
-    if (router.query.dim) {
-      setDim(router.query.dim);
-    }
-  }, [router.query.dim]);
-
-  const titleChange = useCallback(e => {
-    setTitle(e.target.value);
-  });
-
-  const photoChange = useCallback(e => {
-    setPhoto(e.target.value);
-  });
-
-  const authorImageChange = useCallback(e => {
-    setAuthorImage(e.target.value);
-  });
-
-  const dimChange = useCallback(e => {
-    setDim(parseInt(e.target.value, 10));
-  });
-
   const canvas = useRef();
+
+  const [title, titleChanged] = createState(router, "title", "", {
+    parseQuery: q => q.replace(/\\n/g, "\n")
+  });
+  const [imgSrc, imgSrcChanged] = createState(router, "img", null);
+  const [authorImgSrc, authorImgSrcChanged] = createState(
+    router,
+    "author-img",
+    null
+  );
+  const [dim, dimChanged] = createState(router, "dim", 600, {
+    parseQuery: s => parseInt(s, 10)
+  });
+
+  const [img, setImg] = useState(null);
+  const [authorImg, setAuthorImg] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const img = await getImage(imgSrc);
+      setImg(img);
+    })();
+  }, [imgSrc]);
+
+  useEffect(() => {
+    (async () => {
+      const img = await getImage(authorImgSrc);
+      setAuthorImg(img);
+    })();
+  }, [authorImgSrc]);
+
   const foregroundColor = router.query.fgColor || "black";
   const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
 
   useEffect(() => {
     const grid = getGrid(30, 70);
-    if (!router.query.photo) {
+    if (!img) {
       return;
     }
     if (!canvas.current) {
@@ -64,14 +71,23 @@ const Page = () => {
     loadAndPaintImage(
       canvas.current,
       title,
-      photo,
+      img,
+      authorImg,
       router.query.gravity,
-      authorImage,
       backgroundColor,
       foregroundColor,
       grid
     );
-  }, [canvas, dim, title, photo, router.query.gravity, authorImage]);
+  }, [
+    dim,
+    canvas.current,
+    title,
+    img,
+    router.query.gravity,
+    authorImg,
+    backgroundColor,
+    foregroundColor
+  ]);
 
   return (
     <div>
@@ -85,53 +101,47 @@ const Page = () => {
           marginRight: "10px"
         }}
       />
-      <form>
+      <form action="">
         <textarea
-          name="title"
           value={title}
-          onChange={titleChange}
+          onChange={titleChanged}
           style={{
             width: "400px",
             height: "100px"
           }}
         />
         <br />
-        <label for="photo-input">Featured Photo URL</label>
+        <input type="text" onChange={imgSrcChanged} value={imgSrc} />
+        <br />
         <input
           type="text"
-          id="photo-input"
-          name="photo"
-          value={photo}
-          onChange={photoChange}
-          style={{ width: "800px" }}
+          onChange={authorImgSrcChanged}
+          value={authorImgSrc}
         />
         <br />
-        <label for="author-photo-url-input">Author Photo URL</label>
-        <input
-          type="text"
-          name="authorImage"
-          value={authorImage}
-          onChange={authorImageChange}
-          style={{ width: "800px" }}
-        />
-        <br />
-        <label for="dim-input">Dim</label>
-        <input
-          type="number"
-          min="100"
-          name="dim"
-          value={dim}
-          onChange={dimChange}
-        />
+        <input type="number" min="100" value={dim} onChange={dimChanged} />
       </form>
     </div>
   );
 };
 
-async function getScaledImage(src, maxWidth, maxHeight, gravity) {
+async function getImage(src) {
   const img = new Image();
   img.src = src;
-  await img.decode();
+  try {
+    await img.decode();
+    return img;
+  } catch (error) {
+    const customError = new Error(
+      `Could not decode img: ${src}: ${error.message}`
+    );
+    customError.cause = error;
+    console.warn(customError);
+    return null;
+  }
+}
+
+function scaleImage(img, maxWidth, maxHeight) {
   const nw = img.naturalWidth;
   const nh = img.naturalHeight;
   const scaleX = maxWidth / nw;
@@ -139,29 +149,29 @@ async function getScaledImage(src, maxWidth, maxHeight, gravity) {
   const scale = Math.min(scaleX, scaleY);
   const w = nw * scale;
   const h = nh * scale;
-  return [img, w, h];
+  return [w, h];
 }
 
-async function loadAndPaintImage(
+function loadAndPaintImage(
   canvas,
   title,
-  imgSrc,
+  img,
+  authorImg,
   gravity,
-  authorImageSrc,
   backgroundColor,
   foregroundColor,
   grid
 ) {
-  const [img, w, h] = await getScaledImage(imgSrc, canvas.width, canvas.height);
+  const [w, h] = scaleImage(img, canvas.width, canvas.height);
   const [x, y] = applyGravity(canvas.width - w, canvas.height - h, gravity);
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(img, x, y, w, h);
 
-  if (authorImageSrc) {
+  if (authorImg) {
     const scale = 7;
-    const [authorImg, authorW, authorH] = await getScaledImage(
-      authorImageSrc,
+    const [authorW, authorH] = scaleImage(
+      authorImg,
       canvas.width / scale,
       canvas.height / scale
     );
