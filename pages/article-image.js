@@ -1,5 +1,6 @@
 import { useRouter } from "next/router";
 import React, { useCallback, useState, useEffect, useRef } from "react";
+import { SketchPicker } from "react-color";
 import getGrid from "../lib/rule110";
 
 function createState(
@@ -30,35 +31,52 @@ const Page = () => {
   const [title, titleChanged] = createState(router, "title", "", {
     parseQuery: q => q.replace(/\\n/g, "\n")
   });
-  const [imgSrc, imgSrcChanged] = createState(router, "img", null);
+  const [imgSrc, imgSrcChanged] = createState(router, "img", "");
   const [authorImgSrc, authorImgSrcChanged] = createState(
     router,
     "author-img",
-    null
+    ""
   );
   const [dim, dimChanged] = createState(router, "dim", 600, {
     parseQuery: s => parseInt(s, 10)
   });
+  const [foregroundColor, foregroundColorChanged] = createState(
+    router,
+    "fg",
+    "black",
+    {
+      valueFromEvent: color => color.hex
+    }
+  );
+  const [backgroundColor, backgroundColorChanged] = createState(
+    router,
+    "bg",
+    "white",
+    {
+      valueFromEvent: color => color.hex
+    }
+  );
 
   const [img, setImg] = useState(null);
   const [authorImg, setAuthorImg] = useState(null);
 
   useEffect(() => {
     (async () => {
-      const img = await getImage(imgSrc);
-      setImg(img);
+      if (imgSrc) {
+        const img = await getImage(imgSrc);
+        setImg(img);
+      }
     })();
   }, [imgSrc]);
 
   useEffect(() => {
     (async () => {
-      const img = await getImage(authorImgSrc);
-      setAuthorImg(img);
+      if (authorImgSrc) {
+        const img = await getImage(authorImgSrc);
+        setAuthorImg(img);
+      }
     })();
   }, [authorImgSrc]);
-
-  const foregroundColor = router.query.fgColor || "black";
-  const backgroundColor = router.query.bgColor || "rgba(255, 255, 255, 0.7)";
 
   useEffect(() => {
     const grid = getGrid(30, 70);
@@ -120,12 +138,24 @@ const Page = () => {
         />
         <br />
         <input type="number" min="100" value={dim} onChange={dimChanged} />
+        <br />
+        <SketchPicker
+          color={foregroundColor}
+          onChangeComplete={foregroundColorChanged}
+        />
+        <SketchPicker
+          color={backgroundColor}
+          onChangeComplete={backgroundColorChanged}
+        />
       </form>
     </div>
   );
 };
 
 async function getImage(src) {
+  if (!src) {
+    return null;
+  }
   const img = new Image();
   img.src = src;
   try {
